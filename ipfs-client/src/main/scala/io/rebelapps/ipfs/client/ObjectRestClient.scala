@@ -45,6 +45,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       req = Request(
         Method.POST,
         Uri.unsafeFromString(s"http://$host:$port/api/v0/object/put?inputenc=json&datafieldenc=text"),
+        headers = multipart.headers,
         body = body.body
       )
       response <- httpClient.fetchAs[String](req).attempt
