@@ -3,6 +3,7 @@ package io.rebelapps.ipfs.client
 import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
+import io.circe.{Decoder, Encoder}
 import io.circe.parser._
 import io.circe.syntax._
 import io.rebelapps.ipfs.api.ObjectOps
@@ -22,8 +23,8 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   override def put(data: String): F[Either[ObjectPutError, ObjectPutResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/put?inputenc=json&datafieldenc=text")
-    val envelope = DataEnvelope(data).asJson.noSpaces
-    val payload = Stream.emits(envelope.getBytes("UTF-8").toSeq).evalMap(E.point)
+    val envelop = DataEnvelope(data).asJson.noSpaces
+    val payload = Stream.emits(envelop.getBytes("UTF-8").toSeq).evalMap(E.point)
 
     val multipart = Multipart[F](
       Vector(
@@ -66,5 +67,13 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       .compile
       .toList
       .map(bytes => new String(Array(bytes: _*)))
+
+  override def putJson[A: Encoder](data: A): F[Either[ObjectPutError, ObjectPutResponse]] = put(data.asJson.noSpaces)
+
+  override def getJson[A: Decoder](key: String): F[Either[GetError, A]] =
+    get(key) map {
+      case Left(err)       => Left(err)
+      case Right(response) => decode[A](response.Data).leftMap(_.toString + " -> " + response.toString)
+    }
 
 }

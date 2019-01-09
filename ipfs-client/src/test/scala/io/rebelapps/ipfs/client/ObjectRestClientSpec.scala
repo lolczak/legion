@@ -7,7 +7,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
 
 class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp with Inside {
 
-  "An Ipfs client" should "store string" in {
+  "An Ipfs client" should "persist strings" in {
     //given
     val TestData = "test"
     //when
@@ -23,6 +23,27 @@ class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     }
     inside(getResult) { case Right(response) =>
       response.Data shouldBe TestData
+    }
+  }
+
+  it should "persist json objects" in {
+    //given
+    import io.circe.generic.auto._
+    case class TestData(name: String, count: Long)
+    val TestJson = TestData("test", 100)
+    //when
+    val (putResult, getResult) = {
+      for {
+        putResult <- objectUnderTest.objectOps.putJson[TestData](TestJson)
+        getResult <- putResult.fold(err => IO.pure(err.asLeft), putResp => objectUnderTest.objectOps.getJson[TestData](putResp.Hash))
+      } yield (putResult, getResult)
+    } unsafeRunSync()
+    //then
+    inside(putResult) { case Right(response) =>
+      response.Hash shouldNot be (empty)
+    }
+    inside(getResult) { case Right(response) =>
+      response shouldBe TestJson
     }
   }
 
