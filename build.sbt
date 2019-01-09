@@ -4,7 +4,7 @@ resolvers += Resolver.typesafeRepo("releases")
 val catsVersion = "1.0.1"
 val catsEffectVersion = "0.8"
 val circeVersion = "0.9.0"
-val scalaTestVersion = "3.0.4"
+val scalaTestVersion = "3.0.5"
 val testcontainersVersion = "0.13.0"
 val logbackVersion = "1.2.3"
 val slf4jVersion = "1.7.25"
@@ -18,8 +18,9 @@ lazy val `ipfs-client` = (project in file("ipfs-client")).settings(commonSetting
     "org.slf4j" % "slf4j-api" % slf4jVersion,
     "ch.qos.logback" % "logback-classic" % logbackVersion,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-    "org.http4s" %% "http4s-dsl" % http4sVersion,
+//    "org.http4s" %% "http4s-dsl" % http4sVersion,
     "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-client" % http4sVersion
   ) ++ testing ++ metrics ++ functional ++ quartz
 )
 
@@ -30,7 +31,7 @@ lazy val `ipfs-oplog` = (project in file("ipfs-oplog")).settings(commonSettings)
     "ch.qos.logback" % "logback-classic" % logbackVersion,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
   ) ++ testing ++ metrics ++ functional ++ quartz
 )
 
@@ -41,7 +42,7 @@ lazy val `legion-core` = (project in file("legion-core")).settings(commonSetting
     "ch.qos.logback" % "logback-classic" % logbackVersion,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
   ) ++ testing ++ metrics ++ functional ++ quartz
 )
 
@@ -52,7 +53,7 @@ lazy val `legion-p2p` = (project in file("legion-p2p")).settings(commonSettings)
     "ch.qos.logback" % "logback-classic" % logbackVersion,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
   ) ++ testing ++ metrics ++ functional ++ quartz
 )
 
@@ -63,11 +64,11 @@ lazy val `legion-crdt` = (project in file("legion-crdt")).settings(commonSetting
     "ch.qos.logback" % "logback-classic" % logbackVersion,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
   ) ++ testing ++ metrics ++ functional ++ quartz
 )
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.5",
+  scalaVersion := "2.12.8",
   organization := "io.rebelapps.legion",
   libraryDependencies ++= Seq(
     "io.circe" %% "circe-core" % circeVersion,
@@ -94,7 +95,6 @@ lazy val circe = Seq(
 )
 lazy val testing = Seq(
   "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
-  "com.dimafeng" %% "testcontainers-scala" % testcontainersVersion % Test,
   "org.scalacheck" %% "scalacheck" % "1.13.5" % Test
 )
 
