@@ -1,6 +1,7 @@
 package io.rebelapps.ipfs.client
 
 import cats.effect.IO
+import cats.implicits._
 import io.rebelapps.test.{DockerSetUp, Tcp}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
 
@@ -8,11 +9,20 @@ class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll
 
   "An Ipfs client" should "store string" in {
     //given
+    val TestData = "test"
     //when
-    val result = objectUnderTest.objectOps.put("test").unsafeRunSync()
+    val (putResult, getResult) = {
+      for {
+        putResult <- objectUnderTest.objectOps.put(TestData)
+        getResult <- putResult.fold(err => IO.pure(err.asLeft), putResp => objectUnderTest.objectOps.get(putResp.Hash))
+      } yield (putResult, getResult)
+    } unsafeRunSync()
     //then
-    inside(result) { case Right(response) =>
+    inside(putResult) { case Right(response) =>
       response.Hash shouldNot be (empty)
+    }
+    inside(getResult) { case Right(response) =>
+      response.Data shouldBe TestData
     }
   }
 
