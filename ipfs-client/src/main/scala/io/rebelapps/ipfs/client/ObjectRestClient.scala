@@ -6,12 +6,14 @@ import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
 import io.rebelapps.ipfs.api.ObjectOps
-import io.rebelapps.ipfs.model.ObjectPutResponse
+import io.rebelapps.ipfs.model.{DataEnvelope, ObjectPutResponse}
 import org.http4s.client.blaze._
 import org.http4s.client.dsl.io._
 import org.http4s.headers._
 import org.http4s.multipart._
-import io.circe._, io.circe.parser._, io.circe.syntax._
+import io.circe._
+import io.circe.parser._
+import io.circe.syntax._
 import org.http4s.{Charset, EntityEncoder, Header, Headers, MediaType, Method, Request, Uri}
 
 import scala.concurrent.ExecutionContext
@@ -26,11 +28,8 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   private val clientF = Http1Client()
 
   override def put(data: String): F[Either[ObjectPutError, ObjectPutResponse]] = {
-    val payload =
-      s"""{
-         |  "data": "$data"
-         |}
-       """.stripMargin
+    val payload = DataEnvelope(data).asJson.noSpaces
+
     val multipart = Multipart[F](
       Vector(
         Part(

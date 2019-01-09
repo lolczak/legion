@@ -6,7 +6,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
 
 class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp with Inside {
 
-  "An Ipfs client" should "store byte arrays" in {
+  "An Ipfs client" should "store string" in {
     //given
     //when
     val result = objectUnderTest.objectOps.put("test").unsafeRunSync()
