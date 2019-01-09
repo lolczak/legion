@@ -2,16 +2,18 @@ package io.rebelapps.ipfs.client
 
 import cats.effect.IO
 import io.rebelapps.test.{DockerSetUp, Tcp}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
 
-class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp {
+class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp with Inside {
 
   "An Ipfs client" should "store byte arrays" in {
     //given
     //when
     val result = objectUnderTest.objectOps.put("test").unsafeRunSync()
     //then
-    result shouldBe "hash"
+    inside(result) { case Right(response) =>
+      response.Hash shouldNot be (empty)
+    }
   }
 
   lazy val dockerComposeFile = "./ipfs-client/src/test/resources/test-docker-compose.yml"
