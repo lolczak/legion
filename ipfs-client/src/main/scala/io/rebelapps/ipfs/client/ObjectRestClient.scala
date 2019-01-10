@@ -7,13 +7,14 @@ import io.circe.{Decoder, Encoder}
 import io.circe.parser._
 import io.circe.syntax._
 import io.rebelapps.ipfs.api.ObjectOps
-import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse}
+import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse, NotFound}
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
 import org.http4s.client.blaze._
 import org.http4s.headers._
 import org.http4s.multipart._
 import org.http4s.{Charset, EntityEncoder, MediaType, Method, Request, Response, Status, Uri}
 import shapeless._
+import shapeless.ops.coproduct.Inject
 
 import scala.language.higherKinds
 
@@ -42,36 +43,39 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       httpClient <- clientF
       body       <- bodyF
       request     = Request(Method.POST, url, headers = multipart.headers, body = body.body)
-      response   <- httpClient.fetch[Either[InvalidRequest, String]](request)(responseHandler)
-      result      = response.fold(err => Left(Coproduct[ObjectPutFailure](err)), parsePutResponse)
+      response   <- httpClient.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
+      result      = response.flatMap(parsePutResponse)
     } yield result
   }
 
-  private val responseHandler: Response[F] =|> F[Either[InvalidRequest, String]] = {
+  private def notFoundHandler[A <: Coproduct](implicit inj: Inject[A, NotFound.type]): Response[F] =|> F[Either[A, String]] = {
+    case resp if resp.status == Status.NotFound => E.point(Coproduct[A](NotFound).asLeft)
+  }
+
+  private def responseHandler[A <: Coproduct](implicit inj: Inject[A, InvalidRequest]): Response[F] =|> F[Either[A, String]] = {
     case resp if resp.status == Status.Ok =>
       readString(resp.body).map(_.asRight)
 
     case resp =>
-      readString(resp.body).map(body => InvalidRequest(resp.status.code, body).asLeft)
+      readString(resp.body).map(body => Coproduct[A](InvalidRequest(resp.status.code, body)).asLeft)
   }
 
   private def parsePutResponse(body: String): Either[ObjectPutFailure, ObjectPutResponse] =
     decode[ObjectPutResponse](body)
-      .leftMap { err => Coproduct[ObjectPutFailure](InvalidResponse(200, body, err.toString)) }
+      .leftMap { err => Coproduct[ObjectPutFailure](InvalidResponse(body, err.toString)) }
 
   override def get(key: String): F[Either[GetError, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
     for {
       httpClient <- clientF
-      response   <- httpClient.get[Either[GetError, ObjectGetResponse]](url) {
-        case resp if resp.status == Status.Ok => readString(resp.body).map(parseGetResponse)
-        case resp                             => readString(resp.body).map(Left(_))
-      }
-    } yield response
+      response   <- httpClient.get[Either[GetError, String]](url)(notFoundHandler[GetError] orElse responseHandler[GetError])
+      result      = response.flatMap(parseGetResponse)
+    } yield result
   }
 
-  private def parseGetResponse(responseStr: String): Either[GetError, ObjectGetResponse] =
-    decode[ObjectGetResponse](responseStr).leftMap(_.toString)
+  private def parseGetResponse(body: String): Either[GetError, ObjectGetResponse] =
+    decode[ObjectGetResponse](body)
+      .leftMap { err => Coproduct[GetError](InvalidResponse(body, err.toString)) }
 
   private def readString(stream: Stream[F, Byte]): F[String] =
     stream
@@ -84,7 +88,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   override def getJson[A: Decoder](key: String): F[Either[GetError, A]] =
     get(key) map {
       case Left(err)       => Left(err)
-      case Right(response) => decode[A](response.Data).leftMap(_.toString + " -> " + response.toString)
+      case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[GetError](InvalidResponse(response.Data, err.toString)) }
     }
 
 }

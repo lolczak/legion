@@ -1,7 +1,7 @@
 package io.rebelapps.ipfs.api
 
 import io.circe.{Decoder, Encoder}
-import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse}
+import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse, NotFound}
 import io.rebelapps.ipfs.model.{ObjectGetResponse, ObjectPutResponse}
 import shapeless._
 
@@ -11,7 +11,7 @@ trait ObjectOps[F[_]] {
 
   type ObjectPutFailure = GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
-  type GetError = String
+  type GetError = NotFound.type :+: GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
   def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
