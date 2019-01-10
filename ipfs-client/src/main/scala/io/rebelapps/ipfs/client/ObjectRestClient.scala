@@ -3,11 +3,11 @@ package io.rebelapps.ipfs.client
 import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
-import io.circe.{Decoder, Encoder}
 import io.circe.parser._
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder}
 import io.rebelapps.ipfs.api.ObjectOps
-import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse, NotFound}
+import io.rebelapps.ipfs.failure.{InvalidRequest, InvalidResponse, NotFound}
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
 import org.http4s.client.blaze._
 import org.http4s.headers._
@@ -48,18 +48,6 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
     } yield result
   }
 
-  private def notFoundHandler[A <: Coproduct](implicit inj: Inject[A, NotFound.type]): Response[F] =|> F[Either[A, String]] = {
-    case resp if resp.status == Status.NotFound => E.point(Coproduct[A](NotFound).asLeft)
-  }
-
-  private def responseHandler[A <: Coproduct](implicit inj: Inject[A, InvalidRequest]): Response[F] =|> F[Either[A, String]] = {
-    case resp if resp.status == Status.Ok =>
-      readString(resp.body).map(_.asRight)
-
-    case resp =>
-      readString(resp.body).map(body => Coproduct[A](InvalidRequest(resp.status.code, body)).asLeft)
-  }
-
   private def parsePutResponse(body: String): Either[ObjectPutFailure, ObjectPutResponse] =
     decode[ObjectPutResponse](body)
       .leftMap { err => Coproduct[ObjectPutFailure](InvalidResponse(body, err.toString)) }
@@ -77,12 +65,6 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
     decode[ObjectGetResponse](body)
       .leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(body, err.toString)) }
 
-  private def readString(stream: Stream[F, Byte]): F[String] =
-    stream
-      .compile
-      .toList
-      .map(bytes => new String(Array(bytes: _*)))
-
   override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
 
   override def getJson[A: Decoder](key: String): F[Either[ObjectGetFailure, A]] =
@@ -90,5 +72,23 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       case Left(err)       => Left(err)
       case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(response.Data, err.toString)) }
     }
+
+  private def notFoundHandler[A <: Coproduct](implicit inj: Inject[A, NotFound.type]): Response[F] =|> F[Either[A, String]] = {
+    case resp if resp.status == Status.NotFound => E.point(Coproduct[A](NotFound).asLeft)
+  }
+
+  private def responseHandler[A <: Coproduct](implicit inj: Inject[A, InvalidRequest]): Response[F] =|> F[Either[A, String]] = {
+    case resp if resp.status == Status.Ok =>
+      readString(resp.body).map(_.asRight)
+
+    case resp =>
+      readString(resp.body).map(body => Coproduct[A](InvalidRequest(resp.status.code, body)).asLeft)
+  }
+
+  private def readString(stream: Stream[F, Byte]): F[String] =
+    stream
+      .compile
+      .toList
+      .map(bytes => new String(Array(bytes: _*)))
 
 }
