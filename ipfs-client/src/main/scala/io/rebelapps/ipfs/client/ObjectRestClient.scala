@@ -47,7 +47,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
     } yield result
   }
 
-  private val responseHandler: Response[F] => F[Either[InvalidRequest, String]] = {
+  private val responseHandler: Response[F] =|> F[Either[InvalidRequest, String]] = {
     case resp if resp.status == Status.Ok =>
       readString(resp.body).map(_.asRight)
 
