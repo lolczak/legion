@@ -64,18 +64,18 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
     decode[ObjectPutResponse](body)
       .leftMap { err => Coproduct[ObjectPutFailure](InvalidResponse(body, err.toString)) }
 
-  override def get(key: String): F[Either[GetError, ObjectGetResponse]] = {
+  override def get(key: String): F[Either[ObjectGetFailure, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
     for {
       httpClient <- clientF
-      response   <- httpClient.get[Either[GetError, String]](url)(notFoundHandler[GetError] orElse responseHandler[GetError])
+      response   <- httpClient.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
       result      = response.flatMap(parseGetResponse)
     } yield result
   }
 
-  private def parseGetResponse(body: String): Either[GetError, ObjectGetResponse] =
+  private def parseGetResponse(body: String): Either[ObjectGetFailure, ObjectGetResponse] =
     decode[ObjectGetResponse](body)
-      .leftMap { err => Coproduct[GetError](InvalidResponse(body, err.toString)) }
+      .leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(body, err.toString)) }
 
   private def readString(stream: Stream[F, Byte]): F[String] =
     stream
@@ -85,10 +85,10 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
 
-  override def getJson[A: Decoder](key: String): F[Either[GetError, A]] =
+  override def getJson[A: Decoder](key: String): F[Either[ObjectGetFailure, A]] =
     get(key) map {
       case Left(err)       => Left(err)
-      case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[GetError](InvalidResponse(response.Data, err.toString)) }
+      case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(response.Data, err.toString)) }
     }
 
 }

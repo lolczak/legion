@@ -11,14 +11,14 @@ trait ObjectOps[F[_]] {
 
   type ObjectPutFailure = GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
-  type GetError = NotFound.type :+: GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
+  type ObjectGetFailure = NotFound.type :+: GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
   def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
-  def get(key: String): F[Either[GetError, ObjectGetResponse]]
+  def get(key: String): F[Either[ObjectGetFailure, ObjectGetResponse]]
 
   def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
-  def getJson[A: Decoder](key: String): F[Either[GetError, A]]
+  def getJson[A: Decoder](key: String): F[Either[ObjectGetFailure, A]]
 
 }
