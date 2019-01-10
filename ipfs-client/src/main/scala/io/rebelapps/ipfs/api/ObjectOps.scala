@@ -9,15 +9,15 @@ import scala.language.higherKinds
 
 trait ObjectOps[F[_]] {
 
-  type ObjectPutError = GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
+  type ObjectPutFailure = GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
   type GetError = String
 
-  def put(data: String): F[Either[ObjectPutError, ObjectPutResponse]]
+  def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
   def get(key: String): F[Either[GetError, ObjectGetResponse]]
 
-  def putJson[A: Encoder](data: A): F[Either[ObjectPutError, ObjectPutResponse]]
+  def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
   def getJson[A: Decoder](key: String): F[Either[GetError, A]]
 

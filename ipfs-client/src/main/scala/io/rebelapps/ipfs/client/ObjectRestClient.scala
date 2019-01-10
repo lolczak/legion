@@ -23,9 +23,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   private val clientF = Http1Client[F]()
 
-  //todo errors
-
-  override def put(data: String): F[Either[ObjectPutError, ObjectPutResponse]] = {
+  override def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/put?inputenc=json&datafieldenc=text")
     val envelop = DataEnvelope(data).asJson.noSpaces
     val payload = Stream.emits(envelop.getBytes("UTF-8").toSeq).evalMap(E.point)
@@ -45,7 +43,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       body       <- bodyF
       request     = Request(Method.POST, url, headers = multipart.headers, body = body.body)
       response   <- httpClient.fetch[Either[InvalidRequest, String]](request)(responseHandler)
-      result      = response.fold(err => Left(Coproduct[ObjectPutError](err)), parsePutResponse)
+      result      = response.fold(err => Left(Coproduct[ObjectPutFailure](err)), parsePutResponse)
     } yield result
   }
 
@@ -57,9 +55,9 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       readString(resp.body).map(body => InvalidRequest(resp.status.code, body).asLeft)
   }
 
-  private def parsePutResponse(body: String): Either[ObjectPutError, ObjectPutResponse] =
+  private def parsePutResponse(body: String): Either[ObjectPutFailure, ObjectPutResponse] =
     decode[ObjectPutResponse](body)
-      .leftMap { err => Coproduct[ObjectPutError](InvalidResponse(200, body, err.toString)) }
+      .leftMap { err => Coproduct[ObjectPutFailure](InvalidResponse(200, body, err.toString)) }
 
   override def get(key: String): F[Either[GetError, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
@@ -81,7 +79,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       .toList
       .map(bytes => new String(Array(bytes: _*)))
 
-  override def putJson[A: Encoder](data: A): F[Either[ObjectPutError, ObjectPutResponse]] = put(data.asJson.noSpaces)
+  override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
 
   override def getJson[A: Decoder](key: String): F[Either[GetError, A]] =
     get(key) map {
