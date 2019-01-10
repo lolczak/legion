@@ -2,15 +2,10 @@ package io.rebelapps.test
 
 import java.net.{InetSocketAddress, Socket}
 
-import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
-
-import java.net.{ InetSocketAddress, Socket }
-
 import cats.implicits._
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.{ FiniteDuration, _ }
+import scala.concurrent.duration.{FiniteDuration, _}
 
 object Tcp {
 
