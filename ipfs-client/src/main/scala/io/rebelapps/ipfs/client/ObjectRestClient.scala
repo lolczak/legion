@@ -7,11 +7,13 @@ import io.circe.{Decoder, Encoder}
 import io.circe.parser._
 import io.circe.syntax._
 import io.rebelapps.ipfs.api.ObjectOps
+import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse}
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
 import org.http4s.client.blaze._
 import org.http4s.headers._
 import org.http4s.multipart._
-import org.http4s.{Charset, EntityEncoder, MediaType, Method, Request, Status, Uri}
+import org.http4s.{Charset, EntityEncoder, MediaType, Method, Request, Response, Status, Uri}
+import shapeless._
 
 import scala.language.higherKinds
 
@@ -20,6 +22,8 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   extends ObjectOps[F] {
 
   private val clientF = Http1Client[F]()
+
+  //todo errors
 
   override def put(data: String): F[Either[ObjectPutError, ObjectPutResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/put?inputenc=json&datafieldenc=text")
@@ -40,13 +44,22 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       httpClient <- clientF
       body       <- bodyF
       request     = Request(Method.POST, url, headers = multipart.headers, body = body.body)
-      response   <- httpClient.fetchAs[String](request).attempt
-      result      = response.fold(th => Left(th.toString), parsePutResponse)
+      response   <- httpClient.fetch[Either[InvalidRequest, String]](request)(responseHandler)
+      result      = response.fold(err => Left(Coproduct[ObjectPutError](err)), parsePutResponse)
     } yield result
   }
 
-  private def parsePutResponse(responseStr: String): Either[ObjectPutError, ObjectPutResponse] =
-    decode[ObjectPutResponse](responseStr).leftMap(_.toString)
+  private val responseHandler: Response[F] => F[Either[InvalidRequest, String]] = {
+    case resp if resp.status == Status.Ok =>
+      readString(resp.body).map(_.asRight)
+
+    case resp =>
+      readString(resp.body).map(body => InvalidRequest(resp.status.code, body).asLeft)
+  }
+
+  private def parsePutResponse(body: String): Either[ObjectPutError, ObjectPutResponse] =
+    decode[ObjectPutResponse](body)
+      .leftMap { err => Coproduct[ObjectPutError](InvalidResponse(200, body, err.toString)) }
 
   override def get(key: String): F[Either[GetError, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
@@ -62,8 +75,8 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   private def parseGetResponse(responseStr: String): Either[GetError, ObjectGetResponse] =
     decode[ObjectGetResponse](responseStr).leftMap(_.toString)
 
-  private def readString(body: Stream[F, Byte]): F[String] =
-    body
+  private def readString(stream: Stream[F, Byte]): F[String] =
+    stream
       .compile
       .toList
       .map(bytes => new String(Array(bytes: _*)))
