@@ -5,38 +5,73 @@ import io.rebelapps.ipfs.api.IpfsApi
 
 import scala.language.higherKinds
 import cats.implicits._
+import fs2.Stream.{emit, eval, iterateEval}
 import io.rebelapps.ipfs.model.ObjectPutResponse
+import fs2._
 
 class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMemento)
-                             (implicit E: Effect[F])
+                             (implicit F: Effect[F])
   extends OpLog[F] {
 
-  override def length(): F[Long] = E.point(memento.seqNumber)
+  import F._
 
-  override def lastSeqNumber(): F[Long] = E.point(memento.seqNumber)
+  override def length(): F[Long] = point(memento.seqNumber)
 
-  override def head(): F[Entry] = E.point(memento.entries.head.entry)
+  override def lastSeqNumber(): F[Long] = point(memento.seqNumber)
 
-  override def headHash(): F[Hash] = E.point(memento.headHash)
+  override def head(): F[Entry] = point(memento.entries.head.entry)
 
-  override def entries(): F[List[Entry]] = E.point(memento.entries.reverse.tail.map(_.entry))
+  override def headHash(): F[Hash] = point(memento.headHash)
+
+  override def entries(): F[List[Entry]] = point(memento.entries.reverse.tail.map(_.entry))
 
   override def append(entry: Entry): F[Hash] = {
     for {
-      newHead <- E.delay(EntryEnvelope(memento.seqNumber + 1, Some(memento.headHash), entry))
+      newHead <- delay(EntryEnvelope(memento.seqNumber + 1, Some(memento.headHash), entry))
       hash    <- ipfs.objectOps.putJson(newHead) flatMap {
         case Left(err) =>
-          E.raiseError[Hash](new RuntimeException(err.toString)) //todo error handling
+          raiseError[Hash](new RuntimeException(err.toString)) //todo error handling
 
         case Right(ObjectPutResponse(hash)) =>
-          E.point(hash)
+          point(hash)
       }
-      _       <- E.delay { memento = memento.copy(seqNumber = memento.seqNumber+1, headHash = hash, entries = newHead :: memento.entries) }
+      _       <- delay { memento = memento.copy(seqNumber = memento.seqNumber+1, headHash = hash, entries = newHead :: memento.entries) }
     } yield hash
   }
 
-  override def updateHead(hash: Hash): F[List[Entry]] = ???
+  override def updateHead(hash: Hash): F[List[Entry]] = {
+    def loop[G[_], A](start: A)(f: A => Stream[G, A]): Stream[G, A] =
+      emit(start) ++ f(start).flatMap(loop(_)(f))
 
+    val source: Stream[F, EntryEnvelope] =
+      Stream
+        .eval { loadEntry(hash) }
+        .flatMap { head =>
+          loop(head) {
+            case entry if entry.isRoot || entry.sequenceNumber == memento.seqNumber + 1 => //todo error handling
+              Stream.empty
+
+            case entry if entry.sequenceNumber > memento.seqNumber =>
+              Stream.eval(loadEntry(entry.maybeNext.get))
+          }
+        }
+
+      for {
+        branch <- source.compile.toList
+        _      <- delay { memento = memento.copy(seqNumber = branch.head.sequenceNumber, headHash = hash, entries = branch ++ memento.entries) }
+      } yield branch.reverse.map(_.entry)
+
+  }
+
+  private def loadEntry(hash: Hash): F[EntryEnvelope] = {
+    ipfs.objectOps.getJson[EntryEnvelope](hash) flatMap {
+      case Left(err) =>
+        raiseError[EntryEnvelope](new RuntimeException(err.toString)) //todo error handling
+
+      case Right(entry) =>
+        point(entry)
+    }
+  }
 }
 
 object IpfsOpLog {
