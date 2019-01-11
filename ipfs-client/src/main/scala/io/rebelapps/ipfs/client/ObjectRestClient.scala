@@ -81,7 +81,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   }
 
   private def handleError[A <: Coproduct](th: Throwable)
-                                         (implicit inj1: Inject[A, GenericFailure],
+                                         (implicit inj1: Inject[A, UnrecognizedFailure],
                                           inj2: Inject[A, NetworkFailure]): A =
     th match {
       case _: TimeoutException     => Coproduct[A](NetworkFailure(createThMsg(th)))
@@ -89,7 +89,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
       case _: SocketException      => Coproduct[A](NetworkFailure(createThMsg(th)))
       case _: UnknownHostException => Coproduct[A](NetworkFailure(createThMsg(th)))
       case _: IOException          => Coproduct[A](NetworkFailure(createThMsg(th)))
-      case _                       => Coproduct[A](GenericFailure(createThMsg(th)))
+      case _                       => Coproduct[A](UnrecognizedFailure(createThMsg(th)))
     }
 
   private def createThMsg(th: Throwable): String = s"${th.toString}, ${getStackTrace(th)}"

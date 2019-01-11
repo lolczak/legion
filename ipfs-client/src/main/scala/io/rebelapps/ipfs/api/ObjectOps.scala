@@ -9,9 +9,9 @@ import scala.language.higherKinds
 
 trait ObjectOps[F[_]] {
 
-  type ObjectPutFailure = NetworkFailure :+: GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
+  type ObjectPutFailure = NetworkFailure :+: UnrecognizedFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
-  type ObjectGetFailure = NetworkFailure :+: NotFound.type :+: GenericFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
+  type ObjectGetFailure = NetworkFailure :+: NotFound.type :+: UnrecognizedFailure :+: InvalidRequest :+: InvalidResponse :+: CNil
 
   def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]]
 
