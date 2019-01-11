@@ -1,5 +1,9 @@
 package io.rebelapps.ipfs.client
 
+import java.io.IOException
+import java.net.{ConnectException, SocketException, UnknownHostException}
+import java.util.concurrent.TimeoutException
+
 import cats.effect.Effect
 import cats.implicits._
 import fs2.Stream
@@ -7,8 +11,9 @@ import io.circe.parser._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import io.rebelapps.ipfs.api.ObjectOps
-import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse, NotFound}
+import io.rebelapps.ipfs.failure._
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
+import org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace
 import org.http4s.client.blaze._
 import org.http4s.headers._
 import org.http4s.multipart._
@@ -50,7 +55,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
     op.attempt
       .map {
-        case Left(th)     => Coproduct[ObjectPutFailure](GenericFailure(th.toString)).asLeft
+        case Left(th)     => handleError[ObjectPutFailure](th).asLeft
         case Right(other) => other
       }
   }
@@ -70,10 +75,24 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
     op.attempt
       .map {
-        case Left(th)     => Coproduct[ObjectGetFailure](GenericFailure(th.toString)).asLeft
+        case Left(th)     => handleError[ObjectGetFailure](th).asLeft
         case Right(other) => other
       }
   }
+
+  private def handleError[A <: Coproduct](th: Throwable)
+                                         (implicit inj1: Inject[A, GenericFailure],
+                                          inj2: Inject[A, NetworkFailure]): A =
+    th match {
+      case _: TimeoutException     => Coproduct[A](NetworkFailure(createThMsg(th)))
+      case _: ConnectException     => Coproduct[A](NetworkFailure(createThMsg(th)))
+      case _: SocketException      => Coproduct[A](NetworkFailure(createThMsg(th)))
+      case _: UnknownHostException => Coproduct[A](NetworkFailure(createThMsg(th)))
+      case _: IOException          => Coproduct[A](NetworkFailure(createThMsg(th)))
+      case _                       => Coproduct[A](GenericFailure(createThMsg(th)))
+    }
+
+  private def createThMsg(th: Throwable): String = s"${th.toString}, ${getStackTrace(th)}"
 
   private def parseGetResponse(body: String): Either[ObjectGetFailure, ObjectGetResponse] =
     decode[ObjectGetResponse](body)
