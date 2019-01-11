@@ -7,7 +7,7 @@ import io.circe.parser._
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder}
 import io.rebelapps.ipfs.api.ObjectOps
-import io.rebelapps.ipfs.failure.{InvalidRequest, InvalidResponse, NotFound}
+import io.rebelapps.ipfs.failure.{GenericFailure, InvalidRequest, InvalidResponse, NotFound}
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
 import org.http4s.client.blaze._
 import org.http4s.headers._
@@ -39,13 +39,20 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
     val bodyF = implicitly[EntityEncoder[F, Multipart[F]]].toEntity(multipart)
 
-    for {
-      httpClient <- clientF
-      body       <- bodyF
-      request     = Request(Method.POST, url, headers = multipart.headers, body = body.body)
-      response   <- httpClient.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
-      result      = response.flatMap(parsePutResponse)
-    } yield result
+    val op =
+      for {
+        httpClient <- clientF
+        body       <- bodyF
+        request     = Request(Method.POST, url, headers = multipart.headers, body = body.body)
+        response   <- httpClient.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
+        result      = response.flatMap(parsePutResponse)
+      } yield result
+
+    op.attempt
+      .map {
+        case Left(th)     => Coproduct[ObjectPutFailure](GenericFailure(th.toString)).asLeft
+        case Right(other) => other
+      }
   }
 
   private def parsePutResponse(body: String): Either[ObjectPutFailure, ObjectPutResponse] =
@@ -54,11 +61,18 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   override def get(key: String): F[Either[ObjectGetFailure, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
-    for {
-      httpClient <- clientF
-      response   <- httpClient.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
-      result      = response.flatMap(parseGetResponse)
-    } yield result
+    val op =
+      for {
+        httpClient <- clientF
+        response   <- httpClient.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
+        result      = response.flatMap(parseGetResponse)
+      } yield result
+
+    op.attempt
+      .map {
+        case Left(th)     => Coproduct[ObjectGetFailure](GenericFailure(th.toString)).asLeft
+        case Right(other) => other
+      }
   }
 
   private def parseGetResponse(body: String): Either[ObjectGetFailure, ObjectGetResponse] =
