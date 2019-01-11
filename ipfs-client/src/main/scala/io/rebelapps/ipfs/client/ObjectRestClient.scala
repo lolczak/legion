@@ -29,6 +29,14 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   private val clientF = Http1Client[F]()
 
+  override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
+
+  override def getJson[A: Decoder](key: String): F[Either[ObjectGetFailure, A]] =
+    get(key) map {
+      case Left(err)       => Left(err)
+      case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(response.Data, err.toString)) }
+    }
+
   override def put(data: String): F[Either[ObjectPutFailure, ObjectPutResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/put?inputenc=json&datafieldenc=text")
     val envelop = DataEnvelope(data).asJson.noSpaces
@@ -97,14 +105,6 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   private def parseGetResponse(body: String): Either[ObjectGetFailure, ObjectGetResponse] =
     decode[ObjectGetResponse](body)
       .leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(body, err.toString)) }
-
-  override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
-
-  override def getJson[A: Decoder](key: String): F[Either[ObjectGetFailure, A]] =
-    get(key) map {
-      case Left(err)       => Left(err)
-      case Right(response) => decode[A](response.Data).leftMap { err => Coproduct[ObjectGetFailure](InvalidResponse(response.Data, err.toString)) }
-    }
 
   private def notFoundHandler[A <: Coproduct](implicit inj: Inject[A, NotFound.type]): Response[F] =|> F[Either[A, String]] = {
     case resp if resp.status == Status.NotFound => E.point(Coproduct[A](NotFound).asLeft)
