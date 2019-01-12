@@ -1,13 +1,13 @@
 package io.rebelapps.ipfs.oplog
 
 import cats.effect.Effect
-import io.rebelapps.ipfs.api.IpfsApi
-
-import scala.language.higherKinds
 import cats.implicits._
-import fs2.Stream.{emit, eval, iterateEval}
+import fs2.Stream.emit
+import io.rebelapps.ipfs.api.IpfsApi
 import io.rebelapps.ipfs.model.ObjectPutResponse
 import fs2._
+
+import scala.language.higherKinds
 
 class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMemento)
                              (implicit F: Effect[F])
@@ -72,6 +72,7 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMement
         point(entry)
     }
   }
+
 }
 
 object IpfsOpLog {
