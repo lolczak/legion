@@ -28,7 +28,7 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
                             (implicit F: ConcurrentEffect[F])
   extends ObjectOps[F] {
 
-  private val clientF = BlazeClientBuilder[F](global).resource
+  private val clientResource = BlazeClientBuilder[F](global).resource
 
   override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
 
@@ -56,9 +56,9 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
     val request = Request[F](Method.POST, url, headers = multipart.headers, body = body.body)
 
     val op =
-      clientF.use { httpClient =>
+      clientResource.use { http =>
         for {
-          response <- httpClient.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
+          response <- http.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
           result = response.flatMap(parsePutResponse)
         } yield result
       }
@@ -76,9 +76,9 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
   override def get(key: String): F[Either[ObjectGetFailure, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
     val op =
-      clientF.use { httpClient =>
+      clientResource.use { http =>
         for {
-          response <- httpClient.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
+          response <- http.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
           result = response.flatMap(parseGetResponse)
         } yield result
       }
