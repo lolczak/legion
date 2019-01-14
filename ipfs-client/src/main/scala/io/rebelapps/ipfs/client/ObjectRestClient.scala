@@ -4,7 +4,7 @@ import java.io.IOException
 import java.net.{ConnectException, SocketException, UnknownHostException}
 import java.util.concurrent.TimeoutException
 
-import cats.effect.ConcurrentEffect
+import cats.effect.{ConcurrentEffect, Resource}
 import cats.implicits._
 import fs2.Stream
 import io.circe.parser._
@@ -14,21 +14,18 @@ import io.rebelapps.ipfs.api.ObjectOps
 import io.rebelapps.ipfs.failure._
 import io.rebelapps.ipfs.model.{DataEnvelope, ObjectGetResponse, ObjectPutResponse}
 import org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace
-import org.http4s.client.blaze._
+import org.http4s.client.Client
 import org.http4s.headers._
 import org.http4s.multipart._
 import org.http4s.{Charset, EntityEncoder, MediaType, Method, Request, Response, Status, Uri}
 import shapeless._
 import shapeless.ops.coproduct.Inject
 
-import scala.concurrent.ExecutionContext.global
 import scala.language.higherKinds
 
-class ObjectRestClient[F[_]](host: String, port: Int = 5001)
+class ObjectRestClient[F[_]](clientResource: Resource[F, Client[F]], host: String, port: Int = 5001)
                             (implicit F: ConcurrentEffect[F])
   extends ObjectOps[F] {
-
-  private val clientResource = BlazeClientBuilder[F](global).resource
 
   override def putJson[A: Encoder](data: A): F[Either[ObjectPutFailure, ObjectPutResponse]] = put(data.asJson.noSpaces)
 

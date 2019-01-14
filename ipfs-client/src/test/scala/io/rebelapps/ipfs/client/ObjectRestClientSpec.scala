@@ -6,7 +6,8 @@ import cats.implicits._
 import io.rebelapps.test.{DockerSetUp, Tcp}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
 
-import scala.concurrent.ExecutionContext.global
+import scala.concurrent.ExecutionContext.Implicits.global
+
 class ObjectRestClientSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp with Inside {
 
   "An Ipfs client" should "persist strings" in {
