@@ -55,18 +55,13 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
     val request = Request[F](Method.POST, url, headers = multipart.headers, body = body.body)
 
-    val op =
-      clientResource.use { http =>
-        for {
-          response <- http.fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
-          result = response.flatMap(parsePutResponse)
-        } yield result
-      }
-    op.attempt
-      .map {
-        case Left(th)     => handleError[ObjectPutFailure](th).asLeft
-        case Right(other) => other
-      }
+    clientResource.use { http =>
+      http
+        .fetch[Either[ObjectPutFailure, String]](request)(responseHandler[ObjectPutFailure])
+        .map(_.flatMap(parsePutResponse))
+        .attemptT
+        .fold(th => handleError[ObjectPutFailure](th).asLeft, identity)
+    }
   }
 
   private def parsePutResponse(body: String): Either[ObjectPutFailure, ObjectPutResponse] =
