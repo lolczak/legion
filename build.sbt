@@ -2,7 +2,7 @@ resolvers += Resolver.sbtPluginRepo("releases")
 resolvers += Resolver.typesafeRepo("releases")
 
 val catsVersion = "1.4.0"
-val catsEffectVersion = "0.10.1"
+val catsEffectVersion = "1.0.0"
 val circeVersion = "0.10.1"
 val scalaTestVersion = "3.0.5"
 val scalaCheckVersion = "1.14.0"
@@ -10,7 +10,7 @@ val logbackVersion = "1.2.3"
 val slf4jVersion = "1.7.25"
 val commonsLangVersion = "3.3.2"
 val scalaLoggingVersion = "3.7.2"
-val http4sVersion = "0.18.21"
+val http4sVersion = "0.19.0"
 
 val legionVersion = "0.1-SNAPSHOT"
 

@@ -1,10 +1,13 @@
 package io.rebelapps.ipfs.oplog
 
 import cats.effect.IO
+import cats.effect.internals.IOContextShift
 import cats.implicits._
 import io.rebelapps.ipfs.client.IpfsRestClient
 import io.rebelapps.test.{DockerSetUp, Tcp}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Inside, Matchers}
+
+import scala.concurrent.ExecutionContext.global
 
 class IpfsOpLogSpec extends FlatSpec with Matchers with BeforeAndAfterAll with DockerSetUp with Inside {
 
@@ -44,8 +47,9 @@ class IpfsOpLogSpec extends FlatSpec with Matchers with BeforeAndAfterAll with D
 
   lazy val restPort = 5001
 
-  lazy val ipfs = new IpfsRestClient[IO](localBindAddress, restPort)
+  implicit val ioCtxShift = IOContextShift(global)
 
+  lazy val ipfs = new IpfsRestClient[IO](localBindAddress, restPort)
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
