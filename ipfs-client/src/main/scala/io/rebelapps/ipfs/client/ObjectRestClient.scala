@@ -75,19 +75,14 @@ class ObjectRestClient[F[_]](host: String, port: Int = 5001)
 
   override def get(key: String): F[Either[ObjectGetFailure, ObjectGetResponse]] = {
     val url = Uri.unsafeFromString(s"http://$host:$port/api/v0/object/get?arg=$key")
-    val op =
-      clientResource.use { http =>
-        for {
-          response <- http.get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
-          result = response.flatMap(parseGetResponse)
-        } yield result
-      }
 
-    op.attempt
-      .map {
-        case Left(th)     => handleError[ObjectGetFailure](th).asLeft
-        case Right(other) => other
-      }
+    clientResource.use { http =>
+      http
+        .get[Either[ObjectGetFailure, String]](url)(notFoundHandler[ObjectGetFailure] orElse responseHandler[ObjectGetFailure])
+        .map(_.flatMap(parseGetResponse))
+        .attemptT
+        .fold(th => handleError[ObjectGetFailure](th).asLeft, identity)
+    }
   }
 
   private def handleError[A <: Coproduct](th: Throwable)
