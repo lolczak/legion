@@ -84,7 +84,21 @@ lazy val commonSettings = Seq(
   scalaVersion := "2.12.8",
   organization := "io.rebelapps.legion",
   version := legionVersion,
-  scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8", "-feature", "-Ypartial-unification"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  scalacOptions ++= Seq(
+    "-feature",
+    "-unchecked",
+    "-deprecation",
+    "-Ypartial-unification",
+    "-encoding", "utf8",
+    "-language:implicitConversions",
+    "-language:higherKinds",
+    "-language:existentials",
+    "-language:postfixOps",
+    "-Xfatal-warnings",
+    "-Yno-adapted-args",
+    "-Ywarn-value-discard"
+  ),
   libraryDependencies ++= Seq(
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
