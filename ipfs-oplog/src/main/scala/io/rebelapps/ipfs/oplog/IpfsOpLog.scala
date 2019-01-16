@@ -1,6 +1,7 @@
 package io.rebelapps.ipfs.oplog
 
 import cats.effect.Effect
+import cats.effect.concurrent.Ref
 import cats.implicits._
 import fs2.Stream.emit
 import io.rebelapps.ipfs.api.IpfsApi
@@ -9,24 +10,25 @@ import fs2._
 
 import scala.language.higherKinds
 
-class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMemento)
+class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
                              (implicit F: Effect[F])
   extends OpLog[F] {
 
   import F._
 
-  override def length(): F[Long] = point(memento.seqNumber)
+  override def length(): F[Long] = mementoRef.get.map(_.seqNumber)
 
-  override def lastSeqNumber(): F[Long] = point(memento.seqNumber)
+  override def lastSeqNumber(): F[Long] = mementoRef.get.map(_.seqNumber)
 
-  override def head(): F[Entry] = point(memento.entries.head.entry)
+  override def head(): F[Entry] = mementoRef.get.map(_.entries.head.entry)
 
-  override def headHash(): F[Hash] = point(memento.headHash)
+  override def headHash(): F[Hash] = mementoRef.get.map(_.headHash)
 
-  override def entries(): F[List[Entry]] = point(memento.entries.reverse.tail.map(_.entry))
+  override def entries(): F[List[Entry]] = mementoRef.get.map(_.entries.reverse.tail.map(_.entry))
 
   override def append(entry: Entry): F[Hash] = {
     for {
+      memento <- mementoRef.get
       newHead <- delay(EntryEnvelope(memento.seqNumber + 1, Some(memento.headHash), entry))
       hash    <- ipfs.objectOps.putJson(newHead) flatMap {
         case Left(err) =>
@@ -35,7 +37,7 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMement
         case Right(ObjectPutResponse(hash)) =>
           point(hash)
       }
-      _       <- delay { memento = memento.copy(seqNumber = memento.seqNumber+1, headHash = hash, entries = newHead :: memento.entries) }
+      _       <- mementoRef.set(memento.copy(seqNumber = memento.seqNumber+1, headHash = hash, entries = newHead :: memento.entries))
     } yield hash
   }
 
@@ -43,22 +45,25 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], @volatile var memento: LogMement
     def loop[G[_], A](start: A)(f: A => Stream[G, A]): Stream[G, A] =
       emit(start) ++ f(start).flatMap(loop(_)(f))
 
-    val source: Stream[F, EntryEnvelope] =
+    def fetchTo(seqNumber: Long): F[List[EntryEnvelope]] =
       Stream
         .eval { loadEntry(hash) }
         .flatMap { head =>
           loop(head) {
-            case entry if entry.isRoot || entry.sequenceNumber == memento.seqNumber + 1 => //todo error handling
+            case entry if entry.isRoot || entry.sequenceNumber == seqNumber + 1 => //todo error handling
               Stream.empty
 
-            case entry if entry.sequenceNumber > memento.seqNumber =>
+            case entry if entry.sequenceNumber > seqNumber =>
               Stream.eval(loadEntry(entry.maybeNext.get))
           }
         }
+        .compile
+        .toList
 
       for {
-        branch <- source.compile.toList
-        _      <- delay { memento = memento.copy(seqNumber = branch.head.sequenceNumber, headHash = hash, entries = branch ++ memento.entries) }
+        memento <- mementoRef.get
+        branch  <- fetchTo(memento.seqNumber)
+        _       <- mementoRef.set(memento.copy(seqNumber = branch.head.sequenceNumber, headHash = hash, entries = branch ++ memento.entries))
       } yield branch.reverse.map(_.entry)
 
   }
@@ -85,7 +90,7 @@ object IpfsOpLog {
 
       case Right(ObjectPutResponse(hash)) =>
         val memento = LogMemento(0, hash, List(EntryEnvelope.Root))
-        E.point(new IpfsOpLog[F](ipfs, memento))
+        Ref.of[F, LogMemento](memento) map {ref => new IpfsOpLog[F](ipfs, ref) }
     }
   }
 
