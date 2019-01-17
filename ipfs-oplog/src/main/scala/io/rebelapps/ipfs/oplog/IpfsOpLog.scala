@@ -20,13 +20,13 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
 
   override def lastSeqNumber(): F[Long] = mementoRef.get.map(_.seqNumber)
 
-  override def head(): F[Entry] = mementoRef.get.map(_.entries.head.entry)
+  override def head(): F[Payload] = mementoRef.get.map(_.entries.head.entry)
 
   override def headHash(): F[Hash] = mementoRef.get.map(_.headHash)
 
-  override def entries(): F[List[Entry]] = mementoRef.get.map(_.entries.reverse.tail.map(_.entry))
+  override def entries(): F[List[Payload]] = mementoRef.get.map(_.entries.reverse.tail.map(_.entry))
 
-  override def append(entry: Entry): F[Hash] = {
+  override def append(entry: Payload): F[Hash] = {
     for {
       memento <- mementoRef.get
       newHead <- delay(EntryEnvelope(memento.seqNumber + 1, Some(memento.headHash), entry))
@@ -41,7 +41,7 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
     } yield hash
   }
 
-  override def updateHead(hash: Hash): F[List[Entry]] = {
+  override def updateHead(hash: Hash): F[List[Payload]] = {
     def loop[G[_], A](start: A)(f: A => Stream[G, A]): Stream[G, A] =
       emit(start) ++ f(start).flatMap(loop(_)(f))
 

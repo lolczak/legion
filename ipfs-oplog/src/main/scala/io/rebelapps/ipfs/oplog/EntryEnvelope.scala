@@ -7,7 +7,7 @@ import io.circe.Encoder
 
 case class EntryEnvelope(sequenceNumber: Long,
                          maybeNext: Option[Hash],
-                         entry: Entry) {
+                         entry: Payload) {
 
   lazy val isRoot: Boolean = sequenceNumber == 0
 
@@ -15,13 +15,13 @@ case class EntryEnvelope(sequenceNumber: Long,
 
 object EntryEnvelope {
 
-  private[oplog] val RootEntry = Entry("ROOT", "ROOT")
+  private[oplog] val RootEntry = Payload("ROOT", "ROOT")
 
   private[oplog] val Root = EntryEnvelope(0, None, RootEntry)
 
-  implicit val entryEncoder: Encoder[Entry] = deriveEncoder
+  implicit val entryEncoder: Encoder[Payload] = deriveEncoder
 
-  implicit val entryDecoder: Decoder[Entry] = deriveDecoder
+  implicit val entryDecoder: Decoder[Payload] = deriveDecoder
 
   implicit val envelopeEncoder: Encoder[EntryEnvelope] = deriveEncoder
 

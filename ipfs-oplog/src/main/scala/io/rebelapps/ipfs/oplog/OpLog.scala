@@ -8,14 +8,14 @@ trait OpLog[F[_]] {
 
   def lastSeqNumber(): F[Long]
 
-  def head(): F[Entry]
+  def head(): F[Payload]
 
   def headHash(): F[Hash]
 
-  def entries(): F[List[Entry]]
+  def entries(): F[List[Payload]]
 
-  def append(entry: Entry): F[Hash]
+  def append(entry: Payload): F[Hash]
 
-  def updateHead(hash: Hash): F[List[Entry]]
+  def updateHead(hash: Hash): F[List[Payload]]
 
 }
