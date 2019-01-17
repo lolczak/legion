@@ -14,8 +14,8 @@ class IpfsOpLogSpec extends FlatSpec with Matchers with BeforeAndAfterAll with D
   "An IPFS op log" should "create new op log" in {
     //given
     val log = IpfsOpLog.createNew[IO](ipfs).unsafeRunSync()
-    val entry1 = Payload("test-op1", "test1")
-    val entry2 = Payload("test-op2", "test2")
+    val entry1 = Payload("my-set", "test-op1", "test1")
+    val entry2 = Payload("my-set", "test-op2", "test2")
     //when
     val result = (log.append(entry1) >> log.append(entry2) >> log.entries()).unsafeRunSync()
     //then
@@ -26,9 +26,9 @@ class IpfsOpLogSpec extends FlatSpec with Matchers with BeforeAndAfterAll with D
     //given
     val log1 = IpfsOpLog.createNew[IO](ipfs).unsafeRunSync()
     val log2 = IpfsOpLog.createNew[IO](ipfs).unsafeRunSync()
-    val entry1 = Payload("test-op1", "test1")
-    val entry2 = Payload("test-op2", "test2")
-    val entry3 = Payload("test-op3", "test3")
+    val entry1 = Payload("my-set", "test-op1", "test1")
+    val entry2 = Payload("my-set", "test-op2", "test2")
+    val entry3 = Payload("my-set", "test-op3", "test3")
     //when
     val head1 = log1.append(entry1).unsafeRunSync()
     val result1 = log2.updateHead(head1).unsafeRunSync()

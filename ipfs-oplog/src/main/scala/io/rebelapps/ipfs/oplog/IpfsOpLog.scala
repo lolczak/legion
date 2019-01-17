@@ -20,16 +20,16 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
 
   override def lastSeqNumber(): F[Long] = mementoRef.get.map(_.seqNumber)
 
-  override def head(): F[Payload] = mementoRef.get.map(_.entries.head.entry)
+  override def head(): F[Payload] = mementoRef.get.map(_.entries.head.payload)
 
   override def headHash(): F[Hash] = mementoRef.get.map(_.headHash)
 
-  override def entries(): F[List[Payload]] = mementoRef.get.map(_.entries.reverse.tail.map(_.entry))
+  override def entries(): F[List[Payload]] = mementoRef.get.map(_.entries.reverse.tail.map(_.payload))
 
   override def append(entry: Payload): F[Hash] = {
     for {
       memento <- mementoRef.get
-      newHead <- delay(EntryEnvelope(memento.seqNumber + 1, Some(memento.headHash), entry))
+      newHead <- delay(Entry(memento.seqNumber + 1, Some(memento.headHash), entry))
       hash    <- ipfs.objectOps.putJson(newHead) flatMap {
         case Left(err) =>
           raiseError[Hash](new RuntimeException(err.toString)) //todo error handling
@@ -45,7 +45,7 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
     def loop[G[_], A](start: A)(f: A => Stream[G, A]): Stream[G, A] =
       emit(start) ++ f(start).flatMap(loop(_)(f))
 
-    def fetchTo(seqNumber: Long): F[List[EntryEnvelope]] =
+    def fetchTo(seqNumber: Long): F[List[Entry]] =
       Stream
         .eval { loadEntry(hash) }
         .flatMap { head =>
@@ -64,14 +64,14 @@ class IpfsOpLog[F[_]] private(ipfs: IpfsApi[F], mementoRef: Ref[F, LogMemento])
         memento <- mementoRef.get
         branch  <- fetchTo(memento.seqNumber)
         _       <- mementoRef.set(memento.copy(seqNumber = branch.head.sequenceNumber, headHash = hash, entries = branch ++ memento.entries))
-      } yield branch.reverse.map(_.entry)
+      } yield branch.reverse.map(_.payload)
 
   }
 
-  private def loadEntry(hash: Hash): F[EntryEnvelope] = {
-    ipfs.objectOps.getJson[EntryEnvelope](hash) flatMap {
+  private def loadEntry(hash: Hash): F[Entry] = {
+    ipfs.objectOps.getJson[Entry](hash) flatMap {
       case Left(err) =>
-        raiseError[EntryEnvelope](new RuntimeException(err.toString)) //todo error handling
+        raiseError[Entry](new RuntimeException(err.toString)) //todo error handling
 
       case Right(entry) =>
         point(entry)
@@ -84,12 +84,12 @@ object IpfsOpLog {
 
   def createNew[F[_] : Effect](ipfs: IpfsApi[F]): F[OpLog[F]] = {
     val E = implicitly[Effect[F]]
-    ipfs.objectOps.putJson(EntryEnvelope.Root) flatMap {
+    ipfs.objectOps.putJson(Entry.Root) flatMap {
       case Left(err) =>
         E.raiseError(new RuntimeException(err.toString)) //todo error handling
 
       case Right(ObjectPutResponse(hash)) =>
-        val memento = LogMemento(0, hash, List(EntryEnvelope.Root))
+        val memento = LogMemento(0, hash, List(Entry.Root))
         Ref.of[F, LogMemento](memento) map {ref => new IpfsOpLog[F](ipfs, ref) }
     }
   }
@@ -100,4 +100,4 @@ object IpfsOpLog {
 
 case class LogMemento(seqNumber: Long,
                       headHash: Hash,
-                      entries: List[EntryEnvelope])
+                      entries: List[Entry])
