@@ -1,5 +1,5 @@
 package io.rebelapps.ipfs.oplog
 
-case class Payload(component: String,
+case class Payload(objId: String,
                    opType: String,
                    data: String)
