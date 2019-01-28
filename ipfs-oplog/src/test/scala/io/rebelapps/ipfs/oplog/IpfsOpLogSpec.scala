@@ -41,6 +41,19 @@ class IpfsOpLogSpec extends FlatSpec with Matchers with BeforeAndAfterAll with D
     result3 shouldBe List(entry1, entry2, entry3)
   }
 
+  it should "create op log from the head" in {
+    //given
+    val log1 = IpfsOpLog.createNew[IO](ipfs).unsafeRunSync()
+    val entry1 = Payload("my-set", "test-op1", "test1")
+    val entry2 = Payload("my-set", "test-op2", "test2")
+    val entry3 = Payload("my-set", "test-op3", "test3")
+    val hash = (log1.append(entry1) >> log1.append(entry2) >> log1.append(entry3)).unsafeRunSync()
+    //when
+    val result = (IpfsOpLog.fromHead[IO](ipfs, hash) >>= (_.entries())).unsafeRunSync()
+    //then
+    result shouldBe List(entry1, entry2, entry3)
+  }
+
   lazy val dockerComposeFile = "./ipfs-client/src/test/resources/test-docker-compose.yml"
 
   lazy val localBindAddress = "127.0.0.1"

@@ -94,7 +94,11 @@ object IpfsOpLog {
     }
   }
 
-  def fromExisting[F[_] : Effect](ipfs: IpfsApi[F], headHash: Hash): F[OpLog[F]] = ???
+  def fromHead[F[_] : Effect](ipfs: IpfsApi[F], headHash: Hash): F[OpLog[F]] =
+    for {
+      log <- createNew(ipfs)
+      _   <- log.updateHead(headHash)
+    } yield log
 
 }
 
