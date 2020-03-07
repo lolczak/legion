@@ -1,2 +1,2 @@
 # legion
-Eventually consistent and conflict-free toolkit for building next-generation distributed programs.
+Akka cluster implementation using Zookeeper for coordination.

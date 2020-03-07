@@ -1,124 +1,42 @@
-resolvers += Resolver.sbtPluginRepo("releases")
-resolvers += Resolver.typesafeRepo("releases")
+name := "legion"
+organization := "me.olczak"
+scalaVersion := "2.13.1"
 
-val catsVersion = "1.4.0"
-val catsEffectVersion = "1.0.0"
-val circeVersion = "0.10.1"
-val scalaTestVersion = "3.0.5"
+val catsVersion       = "2.1.1"
+val shapelessVersion  = "2.3.3"
+val scalaTestVersion  = "3.1.1"
 val scalaCheckVersion = "1.14.0"
-val logbackVersion = "1.2.3"
-val slf4jVersion = "1.7.25"
-val commonsLangVersion = "3.3.2"
-val scalaLoggingVersion = "3.7.2"
-val http4sVersion = "0.19.0"
 
-val legionVersion = "0.1-SNAPSHOT"
-
-lazy val `ipfs-client` = (project in file("ipfs-client"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-lang3" % commonsLangVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "ch.qos.logback" % "logback-classic" % logbackVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion,
-      "org.http4s" %% "http4s-client" % http4sVersion
-    ) ++ testing ++ functional
-  )
-
-lazy val `ipfs-oplog` = (project in file("ipfs-oplog"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-lang3" % commonsLangVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "ch.qos.logback" % "logback-classic" % logbackVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-      "org.http4s" %% "http4s-dsl" % http4sVersion,
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion
-    ) ++ testing ++ functional
-  )
-  .dependsOn(`ipfs-client`)
-
-lazy val `legion-core` = (project in file("legion-core"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-lang3" % commonsLangVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "ch.qos.logback" % "logback-classic" % logbackVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-      "org.http4s" %% "http4s-dsl" % http4sVersion,
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion
-    ) ++ testing ++ functional
-  )
-
-lazy val `legion-p2p` = (project in file("legion-p2p"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-lang3" % commonsLangVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "ch.qos.logback" % "logback-classic" % logbackVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-      "org.http4s" %% "http4s-dsl" % http4sVersion,
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion
-    ) ++ testing ++ functional
-  )
-
-lazy val `legion-crdt` = (project in file("legion-crdt"))
-  .settings(commonSettings)
-  .settings(
-    libraryDependencies ++= Seq(
-      "org.apache.commons" % "commons-lang3" % commonsLangVersion,
-      "org.slf4j" % "slf4j-api" % slf4jVersion,
-      "ch.qos.logback" % "logback-classic" % logbackVersion,
-      "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion exclude("org.scala-lang", "scala-reflect"),
-      "org.http4s" %% "http4s-dsl" % http4sVersion,
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion
-    ) ++ testing ++ functional
-  )
-
-lazy val commonSettings = Seq(
-  scalaVersion := "2.12.8",
-  organization := "io.rebelapps.legion",
-  version := legionVersion,
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
-  scalacOptions ++= Seq(
-    "-feature",
-    "-unchecked",
-    "-deprecation",
-    "-Ypartial-unification",
-    "-encoding", "utf8",
-    "-language:implicitConversions",
-    "-language:higherKinds",
-    "-language:existentials",
-    "-language:postfixOps",
-    "-Xfatal-warnings",
-    "-Yno-adapted-args",
-    "-Ywarn-value-discard"
-  ),
-  libraryDependencies ++= Seq(
-    "io.circe" %% "circe-core" % circeVersion,
-    "io.circe" %% "circe-generic" % circeVersion,
-    "io.circe" %% "circe-parser" % circeVersion,
-    "io.circe" %% "circe-java8" % circeVersion
-  )
-)
-
-lazy val functional = Seq(
-  "com.chuusai" %% "shapeless" % "2.3.3",
-  "org.typelevel" %% "cats-core" % catsVersion,
-  "org.typelevel" %% "cats-effect" % catsEffectVersion,
-)
-lazy val circe = Seq(
-  "io.circe" %% "circe-core" % circeVersion,
-  "io.circe" %% "circe-generic" % circeVersion,
-  "io.circe" %% "circe-parser" % circeVersion,
-)
-lazy val testing = Seq(
-  "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+lazy val testLibs = Seq(
+  "org.scalatest"  %% "scalatest"  % scalaTestVersion  % Test,
   "org.scalacheck" %% "scalacheck" % scalaCheckVersion % Test
 )
 
+libraryDependencies ++= Seq(
+  "org.typelevel"        %% "cats-core"   % catsVersion,
+  "com.chuusai"          %% "shapeless"   % shapelessVersion,
+  "com.typesafe.akka"    %% "akka-actor"  % "2.6.3",
+  "com.typesafe.akka"    %% "akka-remote" % "2.6.3",
+  "org.apache.zookeeper" % "zookeeper"    % "3.6.0"
+) ++ testLibs
+
+lazy val legion = project in file(".")
+
+addCompilerPlugin(
+  "org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full
+)
+
+scalacOptions ++= Seq(
+  "-feature",
+  "-unchecked",
+  "-deprecation",
+  "-Ypartial-unification",
+  "-encoding",
+  "utf8",
+  "-language:implicitConversions",
+  "-language:higherKinds",
+  "-language:existentials",
+  "-language:postfixOps",
+  "-Xfatal-warnings",
+  "-Ywarn-value-discard"
+)
