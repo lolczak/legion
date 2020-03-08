@@ -1,0 +1,3 @@
+package legion
+
+class LegionSettings {}

@@ -17,26 +17,23 @@ libraryDependencies ++= Seq(
   "com.chuusai"          %% "shapeless"   % shapelessVersion,
   "com.typesafe.akka"    %% "akka-actor"  % "2.6.3",
   "com.typesafe.akka"    %% "akka-remote" % "2.6.3",
-  "org.apache.zookeeper" % "zookeeper"    % "3.6.0"
+  "org.apache.zookeeper" % "zookeeper"    % "3.6.0",
+  "dev.zio"              %% "zio"         % "1.0.0-RC18-1"
 ) ++ testLibs
 
 lazy val legion = project in file(".")
 
-addCompilerPlugin(
-  "org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full
-)
+addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.11.0" cross CrossVersion.full)
 
 scalacOptions ++= Seq(
   "-feature",
   "-unchecked",
   "-deprecation",
-  "-Ypartial-unification",
   "-encoding",
   "utf8",
   "-language:implicitConversions",
   "-language:higherKinds",
   "-language:existentials",
   "-language:postfixOps",
-  "-Xfatal-warnings",
-  "-Ywarn-value-discard"
+  "-Xfatal-warnings"
 )
